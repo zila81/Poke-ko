@@ -1,9 +1,13 @@
 name: v3 원본검증 → 7개언어 한국어판 → 웹설치
+
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths: [".github/workflows/**","korean/**","README.md"]
+    paths:
+      - ".github/workflows/**"
+      - "korean/**"
+      - "README.md"
 
 permissions:
   contents: read
@@ -21,16 +25,22 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+      - name: Poke-ko 받기
+        uses: actions/checkout@v6
+
+      - name: Python 준비
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
       - name: 최신 원본 TamaPoke 받기
         run: |
-          git clone --depth 1 https://github.com/socquique/TamaPoke.git upstream
-          echo "UPSTREAM=$(git -C upstream rev-parse HEAD)"
+          git clone --depth 1 https://github.com/socquique/TamaPoke.git TamaPoke
+          echo "UPSTREAM=$(git -C TamaPoke rev-parse HEAD)"
+          test -f TamaPoke/TamaPoke.ino
+          echo "✅ Arduino sketch 확인: TamaPoke/TamaPoke.ino"
 
       - name: Arduino CLI 설치
         run: |
@@ -50,41 +60,56 @@ jobs:
           python -m pip install --upgrade esptool
 
       - name: "① 원본 무수정 빌드"
-        working-directory: upstream
-        run: ../bin/arduino-cli compile --fqbn "$FQBN" .
+        working-directory: TamaPoke
+        run: |
+          ../bin/arduino-cli compile --fqbn "$FQBN" .
+          echo "✅ 원본 TamaPoke 빌드 성공"
 
       - name: "② v3 패치 및 구조 검증"
         run: |
-          python korean/patch_v3.py upstream
-          python korean/verify_v3.py upstream
-          python korean/patch_web.py upstream
+          python korean/patch_v3.py TamaPoke
+          python korean/verify_v3.py TamaPoke
+          python korean/patch_web.py TamaPoke
+          echo "✅ 한국어 v3 패치 완료"
 
       - name: "③ 7개 언어 한국어판 빌드"
-        working-directory: upstream
-        run: ../bin/arduino-cli compile --fqbn "$FQBN" .
+        working-directory: TamaPoke
+        run: |
+          ../bin/arduino-cli compile --fqbn "$FQBN" .
+          echo "✅ 한국어판 빌드 성공"
 
       - name: "④ 원본 build_web.sh 웹 패키징"
-        working-directory: upstream
+        working-directory: TamaPoke
         run: |
           export PATH="$GITHUB_WORKSPACE/bin:$PATH"
           bash tools/build_web.sh
           test -s web/firmware/tamapoke.bin
           test -s web/sprites.pak
+          ls -lh web/firmware/tamapoke.bin
+          ls -lh web/sprites.pak
+          echo "✅ 웹 설치 파일 생성 성공"
 
       - name: "⑤ 웹 표시 한국어 재적용"
-        run: python korean/patch_web.py upstream
+        run: |
+          python korean/patch_web.py TamaPoke
 
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      - name: GitHub Pages 구성
+        uses: actions/configure-pages@v6
+
+      - name: Pages 파일 업로드
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: upstream/web
+          path: TamaPoke/web
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - id: deployment
+      - name: GitHub Pages 배포
+        id: deployment
         uses: actions/deploy-pages@v5
