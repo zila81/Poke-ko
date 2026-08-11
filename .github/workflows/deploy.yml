@@ -1,0 +1,99 @@
+name: 한국어판 빌드 및 웹설치 배포
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - ".github/workflows/**"
+      - "korean/**"
+      - "README.md"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poke-ko 설정 받기
+        uses: actions/checkout@v4
+
+      - name: 원본 TamaPoke 받기
+        run: git clone --depth 1 https://github.com/socquique/TamaPoke.git upstream/TamaPoke
+
+      - name: Python 준비
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Arduino CLI 설치
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: ESP32 코어 및 라이브러리 설치
+        run: |
+          arduino-cli config init
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+          arduino-cli lib install "GFX Library for Arduino"
+          arduino-cli lib install "SensorLib"
+          arduino-cli lib install "XPowersLib"
+          arduino-cli lib install "U8g2"
+          python -m pip install --upgrade esptool
+
+      - name: 한국어 패치 적용
+        run: python korean/apply_korean_complete.py upstream/TamaPoke
+
+      - name: ESP32-S3 펌웨어 빌드
+        working-directory: upstream/TamaPoke
+        run: |
+          FQBN="esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB"
+          mkdir -p build
+          arduino-cli compile --fqbn "$FQBN" --output-dir build .
+          ls -lah build
+
+      - name: 웹 플래시용 단일 BIN 생성
+        working-directory: upstream/TamaPoke
+        run: |
+          mkdir -p web/firmware
+          python -m esptool --chip esp32s3 merge-bin -o web/firmware/tamapoke-ko.bin \
+            0x0 build/TamaPoke.ino.bootloader.bin \
+            0x8000 build/TamaPoke.ino.partitions.bin \
+            0xe000 build/boot_app0.bin \
+            0x10000 build/TamaPoke.ino.bin
+
+      - name: 그림 데이터 번들 생성
+        working-directory: upstream/TamaPoke
+        run: python tools/pack_bundle.py
+
+      - name: 한국어 초보자 웹페이지 적용
+        run: |
+          cp korean/web/index.html upstream/TamaPoke/web/index.html
+          cp korean/web/manifest.json upstream/TamaPoke/web/manifest.json
+          test -s upstream/TamaPoke/web/firmware/tamapoke-ko.bin
+          test -s upstream/TamaPoke/web/sprites.pak
+
+      - name: Pages 설정
+        uses: actions/configure-pages@v5
+
+      - name: Pages 업로드
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: upstream/TamaPoke/web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: GitHub Pages 배포
+        id: deployment
+        uses: actions/deploy-pages@v4
