@@ -1,0 +1,16 @@
+{
+  "name": "TamaPoke 한국어판",
+  "version": "1.4-ko",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "firmware/tamapoke-ko.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

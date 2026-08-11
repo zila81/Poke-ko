@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TamaPoke 한국어판 웹 설치</title>
+<style>
+:root{--bg:#f5f2e9;--card:#fff;--ink:#20232a;--muted:#69707a;--line:#ded8c8;--blue:#2378bd;--green:#269b55;--warn:#fff1d3}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans KR",sans-serif;line-height:1.55}
+main{max-width:760px;margin:auto;padding:30px 18px 70px}.hero{text-align:center;margin-bottom:24px}.hero h1{margin:.25rem 0;font-size:2rem}.hero p{margin:.3rem;color:var(--muted)}
+.tag{display:inline-block;background:#e2f2ff;color:#17649d;border-radius:999px;padding:.25rem .75rem;font-weight:800;font-size:.85rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 3px 14px #0000000a}
+.head{display:flex;align-items:center;gap:10px;font-weight:900;font-size:1.15rem}.n{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--blue);color:#fff}
+.note{background:var(--warn);padding:12px 14px;border-radius:10px}.ok{background:#e8f7ed;border-left:4px solid var(--green);padding:12px 14px;border-radius:8px}
+button{font:inherit;border:0;border-radius:12px;padding:12px 18px;font-weight:900;cursor:pointer;background:var(--green);color:#fff}
+.small{font-size:.9rem;color:var(--muted)}#unsupported{display:none;color:#b52727;font-weight:800}
+.bar{display:none;height:11px;border-radius:8px;background:#ddd;overflow:hidden}.bar>div{height:100%;width:0;background:var(--green)}
+#log{display:none;background:#20232a;color:#e9eef5;padding:12px;border-radius:10px;max-height:230px;overflow:auto;white-space:pre-wrap;font:12px ui-monospace,monospace}
+</style></head>
+<body><main>
+<section class="hero"><span class="tag">초보자용 · Arduino IDE 불필요</span><h1>🎮 TamaPoke 한국어판</h1><p>Waveshare ESP32-S3-Touch-AMOLED-1.75 전용</p></section>
+<div class="note"><b>준비물:</b> PC + Chrome/Edge, USB 데이터 케이블, microSD 카드.</div>
+<p id="unsupported">이 브라우저는 USB 설치 기능을 지원하지 않습니다. PC Chrome/Edge에서 열어주세요.</p>
+
+<section class="card"><div class="head"><span class="n">1</span>한국어 펌웨어 설치</div>
+<p>기기를 USB로 연결하고 아래 버튼을 누른 뒤 ESP32-S3 포트를 선택하세요.</p>
+<esp-web-install-button manifest="manifest.json">
+<button slot="activate" style="background:#2378bd">⚡ 한국어판 설치하기</button>
+<span slot="unsupported">PC Chrome/Edge가 필요합니다.</span><span slot="not-allowed">HTTPS에서만 사용할 수 있습니다.</span>
+</esp-web-install-button>
+<p class="small"><b>기존 세이브 유지:</b> 설치 창에서 Erase/지우기를 선택하지 마세요. 완전 초기화를 원할 때만 지우기를 사용하세요.</p></section>
+
+<section class="card"><div class="head"><span class="n">2</span>포켓몬 그림 데이터 설치</div>
+<p>1단계 설치 창을 닫고 microSD가 기기에 꽂혀 있는지 확인하세요. 아래 버튼 하나로 연결부터 전송까지 진행합니다.</p>
+<button id="sprites">🔌 연결하고 그림 데이터 설치</button><div class="bar" id="bar"><div></div></div><pre id="log"></pre></section>
+
+<section class="card"><div class="head"><span class="n">3</span>재시작</div><p>완료 후 PWR 버튼으로 기기를 재시작하세요.</p>
+<div class="ok">✅ UI 한국어 + 1세대 151마리 한국어 이름이 적용됩니다.</div></section>
+
+<p class="small">비공식 팬 프로젝트입니다. 원본 TamaPoke: socquique/TamaPoke. 스프라이트: PMD SpriteCollab (CC BY-NC).</p>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js"></script>
+<script>
+const $=x=>document.getElementById(x);
+if(!('serial' in navigator)){ $('unsupported').style.display='block'; $('sprites').disabled=true; }
+const log=s=>{const e=$('log');e.style.display='block';e.textContent+=s+'\n';e.scrollTop=e.scrollHeight;}
+const enc=new TextEncoder(); let port,reader,writer,buf='';
+async function line(timeout=8000){const end=Date.now()+timeout;while(Date.now()<end){const p=buf.indexOf('\n');if(p>=0){const s=buf.slice(0,p).trim();buf=buf.slice(p+1);return s;}const r=await reader.read();if(r.done)return null;buf+=new TextDecoder().decode(r.value);}return null;}
+async function wait(tok,timeout=8000){const end=Date.now()+timeout;while(Date.now()<end){const s=await line(end-Date.now());if(s===null)return false;if(s===tok)return true;if(s==='ERR')return false;}return false;}
+function pak(ab){const dv=new DataView(ab),td=new TextDecoder();if(td.decode(new Uint8Array(ab,0,4))!=='TPAK')throw new Error('그림 데이터 파일 형식 오류');const n=dv.getUint16(4,true);let o=6,a=[];for(let i=0;i<n;i++){const l=dv.getUint8(o++);const name=td.decode(new Uint8Array(ab,o,l));o+=l;const size=dv.getUint32(o,true);o+=4;a.push({name,size});}let pos=o;for(const x of a){x.data=new Uint8Array(ab,pos,x.size);pos+=x.size;}return a;}
+async function send(x){await writer.write(enc.encode(`PUT ${x.name} ${x.data.length}\n`));if(!await wait('OK'))return false;for(let i=0;i<x.data.length;i+=2048){await writer.write(x.data.slice(i,i+2048));if(!await wait('#'))return false;}return await wait('DONE',30000);}
+$('sprites').onclick=async()=>{const b=$('sprites');b.disabled=true;try{log('USB 포트를 선택하세요.');port=await navigator.serial.requestPort();await port.open({baudRate:115200});reader=port.readable.getReader();writer=port.writable.getWriter();buf='';log('그림 데이터를 받는 중...');const r=await fetch('sprites.pak');if(!r.ok)throw new Error('sprites.pak 다운로드 실패');const files=pak(await r.arrayBuffer());$('bar').style.display='block';let done=0,fail=0;for(const f of files){if(!await send(f)){fail++;log('전송 실패: '+f.name);}done++;$('bar').firstElementChild.style.width=(done/files.length*100)+'%';if(done%25===0||done===files.length)log(`진행 ${done}/${files.length}`);}if(fail)throw new Error(`${fail}개 파일 전송 실패`);log('✅ 완료! PWR 버튼으로 재시작하세요.');b.textContent='✅ 그림 데이터 설치 완료';}catch(e){log('❌ '+e.message);b.disabled=false;}}
+</script></main></body></html>
