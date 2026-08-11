@@ -1,45 +1,23 @@
-# Poke-ko
+# Poke-ko v3
 
-TamaPoke 한국어판 자동 빌드 + 초보자용 웹 설치 저장소입니다.
+기존 TamaPoke 6개 언어를 그대로 유지하고 한국어(KO)를 7번째로 추가합니다.
 
-원본: https://github.com/socquique/TamaPoke
-
-## 최종 설치 주소
-
-GitHub Pages 배포 완료 후:
-
+배포 성공 후 설치 주소:
 https://zila81.github.io/Poke-ko/
 
-사용자는 PC Chrome/Edge에서 위 주소만 열면 됩니다.
+핵심:
+- ES=0, EN=1, FR=2, DE=3, IT=4, PT=5 유지
+- KO=6 추가
+- 기존 NVS 언어값 호환
+- 영어 UI 유지
+- 원본 DEX 영문 이름 유지
+- KO일 때만 151마리 한국어 이름 표시
+- 한국어에서 U8g2 UTF-8 Korean font 사용
+- 원본 웹 설치기 동작 유지
+- Actions에서 원본 무수정 빌드 → v3 빌드 → 원본 build_web.sh 순서로 검증
 
-1. `한국어판 설치하기`
-2. `연결하고 그림 데이터 설치`
-3. PWR 재시작
-
-## 저장소에서 처음 한 번만
-
-1. `Settings → Pages`
-2. `Build and deployment → Source`를 **GitHub Actions**로 선택
-3. `Actions` 탭
-4. `한국어판 빌드 및 웹설치 배포`
-5. `Run workflow`
-
-## 자동 처리
-
-- 원본 TamaPoke 다운로드
-- 한국어 UI 적용
-- 151마리 한국어 이름 적용
-- U8g2 UTF-8 한글 폰트
-- ESP32-S3 빌드
-- 웹 설치용 BIN 생성
-- 스프라이트 번들 생성
-- GitHub Pages 자동 배포
-
-## 하드웨어
-
-Waveshare ESP32-S3-Touch-AMOLED-1.75 기준.
-
-## 크레딧
-
-비공식 팬 프로젝트입니다. 원본 코드/자산 라이선스는 socquique/TamaPoke를 따릅니다.
-PMD SpriteCollab 스프라이트는 CC BY-NC입니다.
+실기 확인 항목:
+1. 설정에서 7개 언어 순환
+2. EN에서 영어 UI/영문 포켓몬 이름
+3. KO에서 한국어 UI/한국어 포켓몬 이름
+4. 도감/스타팅/메인/해제창에서 한글 잘림 확인
