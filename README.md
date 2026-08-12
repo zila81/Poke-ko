@@ -340,3 +340,22 @@ Poke-ko는 비공식 팬 프로젝트입니다.
 
 Pokémon 및 관련 명칭/캐릭터의 권리는 각 권리자에게 있습니다.
 Poke-ko는 Pokémon Company, Nintendo, Game Freak, Creatures와 공식적인 관련이 없습니다.
+
+
+---
+
+# 한글 폰트 시뮬레이터
+
+현재 실제 펌웨어는 실기에서 한글 출력이 확인된 `u8g2_font_unifont_t_korean2`를 사용합니다.
+
+DotumChe/GulimChe 11/12/14px은 바로 펌웨어에 적용하지 않고 웹 설치 페이지에서 먼저 검증합니다.
+
+GitHub Actions는 Unicode charmap을 명시적으로 선택하고 필수 한글 codepoint의 glyph index와 bitmap 존재 여부를 검사합니다. 누락이 있으면 빌드를 실패시킵니다.
+
+그 다음 TTF→BDF 변환 결과를 `font-preview.json`으로 만들어 웹 Canvas에서 픽셀 그대로 표시합니다.
+
+테스트 조합:
+- KD DotumChe: 11 / 12 / 14px
+- KG GulimChe: 11 / 12 / 14px
+
+시뮬레이터는 브라우저의 TTF 렌더링을 사용하지 않습니다. 생성된 BDF bitmap 자체를 표시합니다.

@@ -18,20 +18,20 @@ def crow(items):
 
 h = H.read_text(encoding="utf-8")
 old = "enum Lang : uint8_t { LANG_ES = 0, LANG_EN, LANG_FR, LANG_DE, LANG_IT, LANG_PT, LANG_COUNT };"
-new = "enum Lang : uint8_t { LANG_ES = 0, LANG_EN, LANG_FR, LANG_DE, LANG_IT, LANG_PT, LANG_KD, LANG_KG, LANG_COUNT };"
+new = "enum Lang : uint8_t { LANG_ES = 0, LANG_EN, LANG_FR, LANG_DE, LANG_IT, LANG_PT, LANG_KO, LANG_COUNT };"
 if old not in h and new not in h: raise SystemExit("언어 enum 구조 불일치")
 h = h.replace(old,new,1)
 H.write_text(h,encoding="utf-8")
 
 c = C.read_text(encoding="utf-8")
-if "// ---------------- KD ----------------" not in c:
+if "// ---------------- KO ----------------" not in c:
     marker = "// Nombres de medalla"
     mi = c.find(marker)
     if mi < 0: raise SystemExit("메달 마커 없음")
     before, after = c[:mi], c[mi:]
     end = before.rfind("};")
     if end < 0: raise SystemExit("STRINGS 끝 없음")
-    ko = "\n// ---------------- KD ----------------\n" + crow(KO_STRINGS) + ",\n" + "// ---------------- KG ----------------\n" + crow(KO_STRINGS) + ",\n"
+    ko = "\n// ---------------- KO ----------------\n" + crow(KO_STRINGS) + ",\n" + "// ---------------- KG ----------------\n" + crow(KO_STRINGS) + ",\n"
     c = before[:end] + ko + before[end:] + after
 
 def append_row(src, name, vals):
@@ -45,17 +45,12 @@ def append_row(src, name, vals):
     return src[:end] + crow(vals) + ",\n" + src[end:]
 
 c = append_row(c,"MED_NAME",["Lv.10","Lv.25","Lv.50","열매","7일 연속","최고 유대","최종 형태","건강"])
-c = append_row(c,"MED_NAME",["Lv.10","Lv.25","Lv.50","열매","7일 연속","최고 유대","최종 형태","건강"])
 c = append_row(c,"MED_LBL",["Lv10","Lv25","Lv50","열매","7일","유대","최종","건강"])
-c = append_row(c,"MED_LBL",["Lv10","Lv25","Lv50","열매","7일","유대","최종","건강"])
-c = append_row(c,"MED_DSC",["레벨 10","레벨 25","레벨 50","열매 발견","7일 연속","유대 최대","최종 형태","최상 상태"])
 c = append_row(c,"MED_DSC",["레벨 10","레벨 25","레벨 50","열매 발견","7일 연속","유대 최대","최종 형태","최상 상태"])
 C.write_text(c,encoding="utf-8")
 
 ino = INO.read_text(encoding="utf-8")
 
-# 원본의 size 1/2/3 의미를 그대로 사용하되, KO에서는 11/12/14px로 매핑한다.
-ino = ino.replace("gfx->setTextSize(", "setUiTextSize(")
 if "#include <U8g2lib.h>" not in ino:
     needle='#include "Arduino_GFX_Library.h"'
     if needle not in ino: raise SystemExit("Arduino_GFX include 없음")
@@ -68,7 +63,7 @@ if "KO_POKE_NAMES[152]" not in ino:
     names=[""]+KO_NAMES
     table="static const char *const KO_POKE_NAMES[152] = {\n"+",\n".join('  "'+esc(x)+'"' for x in names)+"\n};\n\n"
     helper = '''static const char *localizedPokeName(int16_t dex) {
-  if (dex >= 1 && dex <= 151 && (gLang == LANG_KD || gLang == LANG_KG)) return KO_POKE_NAMES[dex];
+  if (dex >= 1 && dex <= 151 && gLang == LANG_KO) return KO_POKE_NAMES[dex];
   if (dex >= 0 && dex <= DEX_COUNT) return DEX_TBL[dex].name;
   return "?";
 }
@@ -82,25 +77,10 @@ static int uiTextLen(const char *s) {
   return n;
 }
 
-// v3.5: 원본 GFX textSize 단계에 맞춰 한국어 bitmap 크기를 선택한다.
-// 원본 size 1 -> 11px, size 2 -> 12px, size 3 이상 -> 14px.
-// 한국어 bitmap 자체는 고정 크기이므로 setTextSize(1)로 출력한다.
-static void setUiTextSize(uint8_t size) {
-  gfx->setUTF8Print(true);
-  if (gLang == LANG_KD || gLang == LANG_KG) {
-    gfx->setTextSize(1);
-    const bool gulim = (gLang == LANG_KG);
-    if (size <= 1) gfx->setFont(gulim ? tamapoke_kg11 : tamapoke_kd11);
-    else if (size == 2) gfx->setFont(gulim ? tamapoke_kg12 : tamapoke_kd12);
-    else gfx->setFont(gulim ? tamapoke_kg14 : tamapoke_kd14);
-  } else {
-    gfx->setFont((const GFXfont *)nullptr);
-    gfx->setTextSize(size);
-  }
-}
-
 static void applyLanguageFont() {
-  setUiTextSize(1);
+  gfx->setUTF8Print(true);
+  if (gLang == LANG_KO) gfx->setFont(u8g2_font_unifont_t_korean2);
+  else gfx->setFont((const GFXfont *)nullptr);
 }
 
 '''
@@ -109,8 +89,8 @@ static void applyLanguageFont() {
 ino=ino.replace("strlen(","uiTextLen(")
 
 for a,b in [
-('{ "ES", "EN", "FR", "DE", "IT", "PT" }','{ "ES", "EN", "FR", "DE", "IT", "PT", "KD", "KG" }'),
-('{"ES","EN","FR","DE","IT","PT"}','{"ES","EN","FR","DE","IT","PT","KD","KG"}')
+('{ "ES", "EN", "FR", "DE", "IT", "PT" }','{ "ES", "EN", "FR", "DE", "IT", "PT", "KO" }'),
+('{"ES","EN","FR","DE","IT","PT"}','{"ES","EN","FR","DE","IT","PT","KO"}')
 ]:
     ino=ino.replace(a,b)
 
@@ -137,7 +117,7 @@ INO.write_text(ino,encoding="utf-8")
 for fp in list(ROOT.glob("*.cpp"))+list(ROOT.glob("*.h")):
     if fp in (C,H): continue
     s=fp.read_text(encoding="utf-8")
-    ns=s.replace('{ "ES", "EN", "FR", "DE", "IT", "PT" }','{ "ES", "EN", "FR", "DE", "IT", "PT", "KD", "KG" }')
+    ns=s.replace('{ "ES", "EN", "FR", "DE", "IT", "PT" }','{ "ES", "EN", "FR", "DE", "IT", "PT", "KO" }')
     if ns!=s: fp.write_text(ns,encoding="utf-8")
 
 print("✅ v3 패치 적용 완료")
