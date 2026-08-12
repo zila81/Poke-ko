@@ -1,23 +1,19 @@
-name: Poke-ko v1.0.1 빌드 → 원본기능검증 → 웹설치
+name: Poke-ko v1.0.1 기준선 + 폰트 시뮬레이터
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
     paths: [".github/workflows/**","korean/**","README.md"]
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
 concurrency:
-  group: poke-ko-v3-pages
+  group: poke-ko-v101-pages
   cancel-in-progress: true
-
 env:
   FQBN: esp32:esp32:esp32s3:CDCOnBoot=cdc,FlashSize=16M,PSRAM=opi,PartitionScheme=app3M_fat9M_16MB
   ESP32_INDEX: https://espressif.github.io/arduino-esp32/package_esp32_index.json
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,19 +22,14 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-
       - name: 최신 원본 TamaPoke 받기
         run: |
           git clone --depth 1 https://github.com/socquique/TamaPoke.git TamaPoke
-          echo "UPSTREAM=$(git -C TamaPoke rev-parse HEAD)"
           test -f TamaPoke/TamaPoke.ino
-          echo "✅ Arduino sketch folder/name 확인: TamaPoke/TamaPoke.ino"
-
       - name: Arduino CLI 설치
         run: |
           curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
           echo "$PWD/bin" >> "$GITHUB_PATH"
-
       - name: ESP32 및 라이브러리 설치
         run: |
           bin/arduino-cli config init --overwrite
@@ -50,55 +41,39 @@ jobs:
           bin/arduino-cli lib install "XPowersLib"
           bin/arduino-cli lib install "U8g2"
           python -m pip install --upgrade esptool freetype-py
-
-      - name: "① 원본 무수정 빌드"
+      - name: "1 원본 무수정 빌드"
         working-directory: TamaPoke
         run: ../bin/arduino-cli compile --fqbn "$FQBN" .
-
-      - name: "② KD(DotumChe) + KG(GulimChe) 11/12/14px 한글 폰트 생성"
-        run: |
-          git clone --depth 1 https://github.com/googlefonts/gulim.git fontsrc/gulim
-          git clone --depth 1 https://github.com/olikraus/u8g2.git fontsrc/u8g2
-          make -C fontsrc/u8g2/tools/font/bdfconv
-          python korean/build_dotum_bdf.py \
-            --dotum fontsrc/gulim/sources/ttf/DotumChe.ttf \
-            --gulim fontsrc/gulim/sources/ttf/GulimChe.ttf \
-            --patch-source korean/patch_v3.py \
-            --out-dir fontbuild
-          python korean/make_u8g2_fonts.py \
-            --bdfconv fontsrc/u8g2/tools/font/bdfconv/bdfconv \
-            --bdf-dir fontbuild \
-            --out TamaPoke/tamapoke_ko_fonts.h
-
-      - name: "③ v3.5 3단계 폰트 패치 및 구조 검증"
+      - name: "2 Korean2 기준선 적용"
         run: |
           python korean/patch_v3.py TamaPoke
           python korean/verify_v3.py TamaPoke
           python korean/patch_web.py TamaPoke
-          python korean/verify_web.py TamaPoke
-
-      - name: "④ 11/12/14px 한국어판 빌드"
+      - name: "3 기준선 펌웨어 빌드"
         working-directory: TamaPoke
         run: ../bin/arduino-cli compile --fqbn "$FQBN" .
-
-      - name: "⑤ 원본 build_web.sh 웹 패키징"
+      - name: "4 KD KG 11 12 14 bitmap 생성 검증"
+        run: |
+          git clone --depth 1 https://github.com/googlefonts/gulim.git fontsrc/gulim
+          python korean/build_font_bdf.py --dotum fontsrc/gulim/sources/ttf/DotumChe.ttf --gulim fontsrc/gulim/sources/ttf/GulimChe.ttf --patch-source korean/patch_v3.py --out-dir fontbuild
+          python korean/make_font_preview.py --bdf-dir fontbuild --patch-source korean/patch_v3.py --out font-preview.json
+      - name: "5 원본 build_web 웹 패키징"
         working-directory: TamaPoke
         run: |
           export PATH="$GITHUB_WORKSPACE/bin:$PATH"
           bash tools/build_web.sh
           test -s web/firmware/tamapoke.bin
           test -s web/sprites.pak
-
-      - name: "⑥ 웹 표시 한국어 재적용"
+      - name: "6 시뮬레이터 및 웹 한국어화"
         run: |
+          cp font-preview.json TamaPoke/web/font-preview.json
+          cp korean/websim/font-sim.js TamaPoke/web/font-sim.js
           python korean/patch_web.py TamaPoke
           python korean/verify_web.py TamaPoke
-
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: TamaPoke/web
-
   deploy:
     needs: build
     runs-on: ubuntu-latest
