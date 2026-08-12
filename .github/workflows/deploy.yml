@@ -1,13 +1,9 @@
-name: v3 원본검증 → 7개언어 한국어판 → 웹설치
-
+name: Poke-ko v1.0.1 빌드 → 원본기능검증 → 웹설치
 on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths:
-      - ".github/workflows/**"
-      - "korean/**"
-      - "README.md"
+    paths: [".github/workflows/**","korean/**","README.md"]
 
 permissions:
   contents: read
@@ -25,13 +21,9 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Poke-ko 받기
-        uses: actions/checkout@v6
-
-      - name: Python 준비
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
 
@@ -40,7 +32,7 @@ jobs:
           git clone --depth 1 https://github.com/socquique/TamaPoke.git TamaPoke
           echo "UPSTREAM=$(git -C TamaPoke rev-parse HEAD)"
           test -f TamaPoke/TamaPoke.ino
-          echo "✅ Arduino sketch 확인: TamaPoke/TamaPoke.ino"
+          echo "✅ Arduino sketch folder/name 확인: TamaPoke/TamaPoke.ino"
 
       - name: Arduino CLI 설치
         run: |
@@ -57,59 +49,62 @@ jobs:
           bin/arduino-cli lib install "SensorLib"
           bin/arduino-cli lib install "XPowersLib"
           bin/arduino-cli lib install "U8g2"
-          python -m pip install --upgrade esptool
+          python -m pip install --upgrade esptool freetype-py
 
       - name: "① 원본 무수정 빌드"
         working-directory: TamaPoke
-        run: |
-          ../bin/arduino-cli compile --fqbn "$FQBN" .
-          echo "✅ 원본 TamaPoke 빌드 성공"
+        run: ../bin/arduino-cli compile --fqbn "$FQBN" .
 
-      - name: "② v3 패치 및 구조 검증"
+      - name: "② KD(DotumChe) + KG(GulimChe) 11/12/14px 한글 폰트 생성"
+        run: |
+          git clone --depth 1 https://github.com/googlefonts/gulim.git fontsrc/gulim
+          git clone --depth 1 https://github.com/olikraus/u8g2.git fontsrc/u8g2
+          make -C fontsrc/u8g2/tools/font/bdfconv
+          python korean/build_dotum_bdf.py \
+            --dotum fontsrc/gulim/sources/ttf/DotumChe.ttf \
+            --gulim fontsrc/gulim/sources/ttf/GulimChe.ttf \
+            --patch-source korean/patch_v3.py \
+            --out-dir fontbuild
+          python korean/make_u8g2_fonts.py \
+            --bdfconv fontsrc/u8g2/tools/font/bdfconv/bdfconv \
+            --bdf-dir fontbuild \
+            --out TamaPoke/tamapoke_ko_fonts.h
+
+      - name: "③ v3.5 3단계 폰트 패치 및 구조 검증"
         run: |
           python korean/patch_v3.py TamaPoke
           python korean/verify_v3.py TamaPoke
           python korean/patch_web.py TamaPoke
-          echo "✅ 한국어 v3 패치 완료"
+          python korean/verify_web.py TamaPoke
 
-      - name: "③ 7개 언어 한국어판 빌드"
+      - name: "④ 11/12/14px 한국어판 빌드"
         working-directory: TamaPoke
-        run: |
-          ../bin/arduino-cli compile --fqbn "$FQBN" .
-          echo "✅ 한국어판 빌드 성공"
+        run: ../bin/arduino-cli compile --fqbn "$FQBN" .
 
-      - name: "④ 원본 build_web.sh 웹 패키징"
+      - name: "⑤ 원본 build_web.sh 웹 패키징"
         working-directory: TamaPoke
         run: |
           export PATH="$GITHUB_WORKSPACE/bin:$PATH"
           bash tools/build_web.sh
           test -s web/firmware/tamapoke.bin
           test -s web/sprites.pak
-          ls -lh web/firmware/tamapoke.bin
-          ls -lh web/sprites.pak
-          echo "✅ 웹 설치 파일 생성 성공"
 
-      - name: "⑤ 웹 표시 한국어 재적용"
+      - name: "⑥ 웹 표시 한국어 재적용"
         run: |
           python korean/patch_web.py TamaPoke
+          python korean/verify_web.py TamaPoke
 
-      - name: GitHub Pages 구성
-        uses: actions/configure-pages@v6
-
-      - name: Pages 파일 업로드
-        uses: actions/upload-pages-artifact@v5
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: TamaPoke/web
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: GitHub Pages 배포
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v5
