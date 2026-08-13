@@ -111,6 +111,8 @@ for a,b in repls: ino=ino.replace(a,b)
 ino=re.sub(r'gfx->print\(DEX_TBL\[([A-Za-z_][A-Za-z0-9_]*)\]\.name\);',r'gfx->print(localizedPokeName(\1));',ino)
 ino=ino.replace("char name[28];","char name[64];").replace("char q[28];","char q[96];")
 ino=re.sub(r'#define FW_VERSION "([^"]+)"',lambda m:'#define FW_VERSION "1.0.1"',ino,count=1)
+ino=ino.replace('#include "tamapoke_ko_fonts.h"\\n','')
+ino=ino.replace('#include "tamapoke_ko_fonts.h"','')
 INO.write_text(ino,encoding="utf-8")
 
 # 언어 코드 배열이 다른 루트 파일에 있으면 보정

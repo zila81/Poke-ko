@@ -359,3 +359,12 @@ GitHub Actions는 Unicode charmap을 명시적으로 선택하고 필수 한글 
 - KG GulimChe: 11 / 12 / 14px
 
 시뮬레이터는 브라우저의 TTF 렌더링을 사용하지 않습니다. 생성된 BDF bitmap 자체를 표시합니다.
+
+
+## v1.0.1 FIX1
+
+Korean2 안정화 기준선에서 이전 KD/KG 실험용 `tamapoke_ko_fonts.h`
+include 잔재가 남을 수 있던 문제를 수정했습니다.
+
+실제 펌웨어는 `u8g2_font_unifont_t_korean2`만 사용하고,
+DotumChe/GulimChe 11/12/14px은 웹 폰트 시뮬레이터에서만 시험합니다.
